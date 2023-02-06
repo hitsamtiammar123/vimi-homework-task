@@ -280,7 +280,6 @@ function App() {
             <option value="oldest">Oldest</option>
           </Input>
         </div>
-        {/* <Loading /> */}
         {isLoading ? <Loading /> : renderContent()}
       </Container>
     </Container>
