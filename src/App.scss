@@ -1,8 +1,15 @@
+body{
+  background: rgb(214,224,241);
+  background: linear-gradient(193deg, rgba(214,224,241,1) 16%, rgba(255,255,255,1) 27%, rgba(234,225,229,1) 45%, rgba(253,226,218,1) 59%, rgba(253,231,224,1) 72%, rgba(233,238,247,1) 84%, rgba(255,255,255,1) 94%);
+}
+
 .video-main-container{
   border: 1px solid lightgrey;
   border-radius: 10px;
-  padding: 15px;
+  padding: 30px;
   min-height: 200px;
+  background: white;
+  opacity: 0.8;
 
   .sort-selection{
     width: 10%;
@@ -35,12 +42,18 @@
       }
     }
 
+    .table-data.no{
+      width: 50px;
+      flex: unset;
+    }
+
     .table-heading{
       background-color: #f3f4f6;
 
       & > .table-data{
         font-weight: 800;
       }
+
     }
   }
 }

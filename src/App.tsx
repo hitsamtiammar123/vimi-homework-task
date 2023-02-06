@@ -27,6 +27,7 @@ interface ProductItemSearch {
   limit: number;
   querySearch?: string;
   not?: ProductItemSearch;
+  after?: string;
 }
 
 function App() {
@@ -62,6 +63,9 @@ function App() {
     }
     if (currentParam.status) {
       result += `&status=${currentParam.status}`;
+    }
+    if (currentParam.after) {
+      result += `&createdOn_gte=${currentParam.after}`;
     }
     if (currentParam.not) {
       if (currentParam.not.status) {
@@ -104,7 +108,7 @@ function App() {
   }
 
   function implementFilterTextBox(filterText: string) {
-    setSearchValue(searchValue + filterText + ' ');
+    setSearchValue(searchValue + ' ' + filterText);
   }
 
   function changePage(pageParam: number, flag: boolean) {
@@ -135,15 +139,17 @@ function App() {
   function applyFilter() {
     const regIs = /is:(\w+)/g;
     const regNot = /not:(\w+)/g;
+    const regAfter = /after:(\w+)/g;
     const checkValues = searchValue.match(regIs);
     const checkNotValues = searchValue.match(regNot);
+    const checkAfterValues = searchValue.match(regAfter);
     const newParam: ProductItemSearch = {
       name: '',
       archived: false,
       limit: LIMIT,
       page: 1,
+      sortBy: currentParam.sortBy,
     };
-    console.log({ checkValues, checkNotValues });
     if (checkValues) {
       checkValues.forEach((item: string) => {
         const val = item.replace('is:', '');
@@ -176,6 +182,11 @@ function App() {
       newParam.not = notParam;
     }
 
+    if (checkAfterValues) {
+      const val = checkAfterValues[0].replace('after:', '');
+      newParam.after = val;
+    }
+
     if (!checkValues && !checkNotValues) {
       newParam.name = searchValue;
     }
@@ -188,7 +199,7 @@ function App() {
       <div className="d-flex flex-column">
         <div className="table-component mt-3">
           <div className="table-heading">
-            <div className="table-data">No.</div>
+            <div className="table-data no">No.</div>
             <div className="table-data">Name</div>
             <div className="table-data">Type</div>
             <div className="table-data">Status</div>
@@ -197,7 +208,7 @@ function App() {
           </div>
           {data.map((item: ProductItem, index: number) => (
             <div key={item.id} className="table-row">
-              <div className="table-data">{(page - 1) * LIMIT + index + 1}</div>
+              <div className="table-data no">{(page - 1) * LIMIT + index + 1}</div>
               <div className="table-data">{item.name}</div>
               <div className="table-data">{item.type}</div>
               <div className="table-data">{renderStatus(item.status)}</div>
@@ -269,6 +280,7 @@ function App() {
             <option value="oldest">Oldest</option>
           </Input>
         </div>
+        {/* <Loading /> */}
         {isLoading ? <Loading /> : renderContent()}
       </Container>
     </Container>
