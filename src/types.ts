@@ -3,6 +3,7 @@ export enum ProductStatus {
   SHOOTING = 'SHOOTING ',
   EDITING = 'EDITING',
   COMPLETED = 'COMPLETED',
+  FEEDBACK = 'FEEDBACK',
 }
 
 export interface ProductItem {

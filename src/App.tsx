@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { ProductItem } from './types';
+import React, { useState, useEffect } from 'react';
+import { ProductItem, ProductStatus } from './types';
 import {
   Container,
   Input,
@@ -18,10 +18,15 @@ import { LIMIT, API_URL } from './constant';
 import moment from 'moment';
 import './App.scss';
 
-interface SearchFilter {
-  searchValue: string;
-  isArchived: boolean;
-  afterDate: Date | null;
+interface ProductItemSearch {
+  name: string;
+  archived: boolean;
+  sortBy?: string;
+  status?: string;
+  page: number;
+  limit: number;
+  querySearch?: string;
+  not?: ProductItemSearch;
 }
 
 function App() {
@@ -29,62 +34,53 @@ function App() {
   const [data, setData] = useState<Array<ProductItem>>([]);
   const [page, setPage] = useState<number>(1);
   const [isLoading, setLoading] = useState<boolean>(false);
-  const [sortBy, setSortBy] = useState<string>('');
   const [searchValue, setSearchValue] = useState<string>('');
-  const [currentFilter, setCurrentFilter] = useState<SearchFilter>({
-    searchValue: '',
-    isArchived: false,
-    afterDate: null,
+  const [currentParam, setCurrentParam] = useState<ProductItemSearch>({
+    name: '',
+    archived: false,
+    limit: LIMIT,
+    page: 1,
   });
 
-  const currentData = useMemo<Array<ProductItem>>(() => {
-    let newData = [...data];
-    if (sortBy === 'latest') {
-      newData.sort(
-        (a: ProductItem, b: ProductItem) =>
-          new Date(b.createdOn).getTime() - new Date(a.createdOn).getTime()
-      );
-    } else if (sortBy === 'oldest') {
-      newData.sort(
-        (a: ProductItem, b: ProductItem) =>
-          new Date(a.createdOn).getTime() - new Date(b.createdOn).getTime()
-      );
-    }
-    newData = newData.filter((d: ProductItem) => !d.archived);
-    return newData;
-  }, [data, sortBy]);
-
-  const filteredData = useMemo(() => {
-    let newData = [...currentData];
-    console.log('filtered data', { currentFilter });
-    if (currentFilter.searchValue !== '') {
-      const searchValue: string = currentFilter.searchValue;
-      newData = newData.filter(
-        (item: ProductItem) => item.name.toLowerCase().indexOf(searchValue.toLowerCase()) !== -1
-      );
-      console.log('newData', { currentFilter, newData });
-    }
-
-    return newData;
-  }, [currentFilter, currentData]);
-
-  const displayedData = useMemo<Array<ProductItem>>(() => {
-    const first = (page - 1) * LIMIT;
-    const last = page * LIMIT;
-    return filteredData.slice(first, last);
-  }, [page, filteredData]);
-
   useEffect(() => {
-    loadData();
-  }, []);
+    loadData(convertObjectToParam());
+  }, [currentParam]);
 
-  function loadData() {
+  function convertObjectToParam() {
+    let result = '';
+    result += `archived=${currentParam.archived}&`;
+    result += `_limit=${currentParam.limit}&`;
+    result += `_page=${currentParam.page}`;
+    if (currentParam.sortBy) {
+      result += `&_sort=createdOn&_order=${currentParam.sortBy}`;
+    }
+    if (currentParam.name) {
+      result += `&name_like=${currentParam.name}`;
+    }
+    if (currentParam.querySearch) {
+      result += `&q=${currentParam.querySearch}`;
+    }
+    if (currentParam.status) {
+      result += `&status=${currentParam.status}`;
+    }
+    if (currentParam.not) {
+      if (currentParam.not.status) {
+        result += `&status_ne=${currentParam.not.status}`;
+      }
+      if (currentParam.not.querySearch) {
+        result += `&type_ne=${currentParam.not.querySearch}`;
+      }
+    }
+
+    return result;
+  }
+
+  function loadData(param: string) {
     setLoading(true);
-    fetch(`${API_URL}/product`)
+    fetch(`${API_URL}/product?${param}`)
       .then((res: Response) => res.json())
       .then((data: Array<ProductItem>) => {
         setData(data);
-        setPage(1);
       })
       .catch(() => {
         console.log('An error occured');
@@ -107,35 +103,84 @@ function App() {
     return null;
   }
 
-  function startLoading(callback: () => void) {
-    setLoading(true);
-    setTimeout(() => {
-      callback();
-      setLoading(false);
-    }, 500);
+  function implementFilterTextBox(filterText: string) {
+    setSearchValue(searchValue + filterText + ' ');
   }
 
-  function changePage(page: number) {
-    startLoading(() => {
-      setPage(page);
+  function changePage(pageParam: number, flag: boolean) {
+    if ((!flag && pageParam < 1) || (flag && data.length === 0)) {
+      return;
+    }
+    setCurrentParam({
+      ...currentParam,
+      page: pageParam,
     });
+    setTimeout(() => setPage(pageParam), 10);
   }
 
   function setCurrentSort(sort: string) {
     console.log({ sort });
-    startLoading(() => {
-      setSortBy(sort);
-      setPage(1);
-    });
+    const newParam = { ...currentParam };
+    if (sort === 'latest') {
+      newParam.sortBy = 'desc';
+    } else if (sort === 'oldest') {
+      newParam.sortBy = 'asc';
+    } else {
+      newParam.sortBy = '';
+    }
+    setCurrentParam(newParam);
+    setPage(1);
   }
 
   function applyFilter() {
-    startLoading(() => {
-      setCurrentFilter({
-        ...currentFilter,
-        searchValue,
+    const regIs = /is:(\w+)/g;
+    const regNot = /not:(\w+)/g;
+    const checkValues = searchValue.match(regIs);
+    const checkNotValues = searchValue.match(regNot);
+    const newParam: ProductItemSearch = {
+      name: '',
+      archived: false,
+      limit: LIMIT,
+      page: 1,
+    };
+    console.log({ checkValues, checkNotValues });
+    if (checkValues) {
+      checkValues.forEach((item: string) => {
+        const val = item.replace('is:', '');
+        if (val === 'archived') {
+          newParam.archived = true;
+        } else if (val.toUpperCase() in ProductStatus) {
+          newParam.status = val.toUpperCase();
+        } else {
+          newParam.querySearch = val;
+        }
       });
-    });
+    }
+    if (checkNotValues) {
+      const notParam: ProductItemSearch = {
+        name: '',
+        archived: false,
+        limit: LIMIT,
+        page: 1,
+      };
+      checkNotValues.forEach((item: string) => {
+        const val = item.replace('not:', '');
+        if (val === 'archived') {
+          newParam.archived = false;
+        } else if (val.toUpperCase() in ProductStatus) {
+          notParam.status = val.toUpperCase();
+        } else {
+          notParam.querySearch = val;
+        }
+      });
+      newParam.not = notParam;
+    }
+
+    if (!checkValues && !checkNotValues) {
+      newParam.name = searchValue;
+    }
+    setCurrentParam(newParam);
+    setPage(1);
   }
 
   function renderContent() {
@@ -150,7 +195,7 @@ function App() {
             <div className="table-data">Created</div>
             <div className="table-data">Manage</div>
           </div>
-          {displayedData.map((item: ProductItem, index: number) => (
+          {data.map((item: ProductItem, index: number) => (
             <div key={item.id} className="table-row">
               <div className="table-data">{(page - 1) * LIMIT + index + 1}</div>
               <div className="table-data">{item.name}</div>
@@ -163,18 +208,10 @@ function App() {
           <div className="d-flex flex-row justify-content-center">
             <Pagination>
               <PaginationItem>
-                <PaginationLink onClick={() => (page > 1 ? changePage(page - 1) : {})}>
-                  Prev
-                </PaginationLink>
+                <PaginationLink onClick={() => changePage(page - 1, false)}>Prev</PaginationLink>
               </PaginationItem>
               <PaginationItem>
-                <PaginationLink
-                  onClick={() =>
-                    page < Math.floor(data.length / LIMIT) ? changePage(page + 1) : {}
-                  }
-                >
-                  Next
-                </PaginationLink>
+                <PaginationLink onClick={() => changePage(page + 1, true)}>Next</PaginationLink>
               </PaginationItem>
             </Pagination>
           </div>
@@ -193,11 +230,21 @@ function App() {
             <ButtonDropdown isOpen={isFilterOpen} toggle={() => setFilterOpen(!isFilterOpen)}>
               <DropdownToggle caret>Filter</DropdownToggle>
               <DropdownMenu>
-                <DropdownItem>Filter by type</DropdownItem>
-                <DropdownItem>Filter is archived</DropdownItem>
-                <DropdownItem>Filter by excluding type</DropdownItem>
-                <DropdownItem>Filter is not archived</DropdownItem>
-                <DropdownItem>Filter after certain date</DropdownItem>
+                <DropdownItem onClick={() => implementFilterTextBox('is:<ANY_TYPE>')}>
+                  Filter by type
+                </DropdownItem>
+                <DropdownItem onClick={() => implementFilterTextBox('is:<ANY_TYPE>')}>
+                  Filter is archived
+                </DropdownItem>
+                <DropdownItem onClick={() => implementFilterTextBox('is:not:<ANY_TYPE>')}>
+                  Filter by excluding type
+                </DropdownItem>
+                <DropdownItem onClick={() => implementFilterTextBox('not:archived')}>
+                  Filter is not archived
+                </DropdownItem>
+                <DropdownItem onClick={() => implementFilterTextBox('after:<DATE>')}>
+                  Filter after certain date
+                </DropdownItem>
               </DropdownMenu>
             </ButtonDropdown>
             <Input
