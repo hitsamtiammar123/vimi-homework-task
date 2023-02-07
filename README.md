@@ -7,3 +7,6 @@
 - For library installation, I use yarn instead of npm
 - I use scss instead of normal css
 - I impmement type convetion on useState hooks
+- For filter after date, I make validation on front-end side
+- I implement responsive feature
+- There are ionicons implemented on each row

@@ -36,6 +36,7 @@ function App() {
   const [page, setPage] = useState<number>(1);
   const [isLoading, setLoading] = useState<boolean>(false);
   const [searchValue, setSearchValue] = useState<string>('');
+  const [isError, setIsError] = useState<boolean>(false);
   const [currentParam, setCurrentParam] = useState<ProductItemSearch>({
     name: '',
     archived: false,
@@ -64,9 +65,6 @@ function App() {
     if (currentParam.status) {
       result += `&status=${currentParam.status}`;
     }
-    if (currentParam.after) {
-      result += `&createdOn_gte=${currentParam.after}`;
-    }
     if (currentParam.not) {
       if (currentParam.not.status) {
         result += `&status_ne=${currentParam.not.status}`;
@@ -84,25 +82,78 @@ function App() {
     fetch(`${API_URL}/product?${param}`)
       .then((res: Response) => res.json())
       .then((data: Array<ProductItem>) => {
-        setData(data);
+        if (currentParam.after) {
+          const date = moment(currentParam.after, 'YYYY-MM-DD').toDate();
+          const newData = data.filter(
+            (item: ProductItem) => new Date(item.createdOn).getTime() >= date.getTime()
+          );
+          setData(newData);
+        } else {
+          setData(data);
+        }
       })
-      .catch(() => {
-        console.log('An error occured');
+      .catch((e: Error) => {
+        console.log('An error occured', { e });
+        setIsError(true);
       })
       .finally(() => setTimeout(() => setLoading(false), 500));
   }
 
   function renderStatus(status: string) {
     if (status === 'INCOMPLETE') {
-      return <span className="text-danger">Incomplete</span>;
+      return (
+        <span className="status-container text-danger">
+          {' '}
+          {React.createElement('ion-icon', {
+            name: 'close-outline',
+            class: 'icon red-icon',
+          })}{' '}
+          Incomplete
+        </span>
+      );
     } else if (status === 'SHOOTING') {
-      return <span className="text-primary">Shooting on progress</span>;
+      return (
+        <span className="status-container text-primary">
+          {' '}
+          {React.createElement('ion-icon', {
+            name: 'alarm-outline',
+            class: 'icon blue-icon',
+          })}
+          Shooting on progress
+        </span>
+      );
     } else if (status === 'EDITING') {
-      return <span className="text-secondary">Video Editing</span>;
+      return (
+        <span className="status-container text-secondary">
+          {' '}
+          {React.createElement('ion-icon', {
+            name: 'videocam-outline',
+            class: 'icon grey-icon',
+          })}
+          Video Editing
+        </span>
+      );
     } else if (status === 'FEEDBACK') {
-      return <span className="text-primary">Waiting for feedback</span>;
+      return (
+        <span className="status-container text-primary">
+          {' '}
+          {React.createElement('ion-icon', {
+            name: 'alarm-outline',
+            class: 'icon blue-icon',
+          })}
+          Waiting for feedback
+        </span>
+      );
     } else if (status === 'COMPLETED') {
-      return <span className="text-success">Complete</span>;
+      return (
+        <span className="status-container text-success">
+          {React.createElement('ion-icon', {
+            name: 'checkmark-done-outline',
+            class: 'icon green-icon',
+          })}
+          Complete
+        </span>
+      );
     }
     return null;
   }
@@ -123,14 +174,13 @@ function App() {
   }
 
   function setCurrentSort(sort: string) {
-    console.log({ sort });
     const newParam = { ...currentParam };
     if (sort === 'latest') {
       newParam.sortBy = 'desc';
     } else if (sort === 'oldest') {
       newParam.sortBy = 'asc';
     } else {
-      newParam.sortBy = '';
+      return;
     }
     setCurrentParam(newParam);
     setPage(1);
@@ -139,7 +189,7 @@ function App() {
   function applyFilter() {
     const regIs = /is:(\w+)/g;
     const regNot = /not:(\w+)/g;
-    const regAfter = /after:(\w+)/g;
+    const regAfter = /after:([0-9-]+)/g;
     const checkValues = searchValue.match(regIs);
     const checkNotValues = searchValue.match(regNot);
     const checkAfterValues = searchValue.match(regAfter);
@@ -187,7 +237,7 @@ function App() {
       newParam.after = val;
     }
 
-    if (!checkValues && !checkNotValues) {
+    if (!checkValues && !checkNotValues && !checkAfterValues) {
       newParam.name = searchValue;
     }
     setCurrentParam(newParam);
@@ -195,6 +245,16 @@ function App() {
   }
 
   function renderContent() {
+    if (isError) {
+      return (
+        <div className="d-flex flex-column align-items-center mt-5">
+          <h2 className="text-danger">An Error occured, click button below to retry</h2>
+          <button onClick={() => loadData(convertObjectToParam())} className="btn btn-primary mt-3">
+            Retry
+          </button>
+        </div>
+      );
+    }
     return (
       <div className="d-flex flex-column">
         <div className="table-component mt-3">
@@ -213,7 +273,14 @@ function App() {
               <div className="table-data">{item.type}</div>
               <div className="table-data">{renderStatus(item.status)}</div>
               <div className="table-data">{moment(item.createdOn).format('MMM DD, YYYY')}</div>
-              <div className="table-data">|</div>
+              <div className="table-data">
+                <Button color="link">
+                  {React.createElement('ion-icon', {
+                    name: 'reorder-four-outline',
+                    class: 'icon-btn',
+                  })}
+                </Button>
+              </div>
             </div>
           ))}
           <div className="d-flex flex-row justify-content-center">

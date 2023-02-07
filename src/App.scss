@@ -1,4 +1,5 @@
 body{
+  height: 100vh;
   background: rgb(214,224,241);
   background: linear-gradient(193deg, rgba(214,224,241,1) 16%, rgba(255,255,255,1) 27%, rgba(234,225,229,1) 45%, rgba(253,226,218,1) 59%, rgba(253,231,224,1) 72%, rgba(233,238,247,1) 84%, rgba(255,255,255,1) 94%);
 }
@@ -11,6 +12,10 @@ body{
   background: white;
   opacity: 0.8;
 
+  @media (max-width:768px) {
+    width: 100vmax;
+  }
+
   .sort-selection{
     width: 10%;
   }
@@ -22,9 +27,15 @@ body{
     .table-heading, .table-row{
       display: flex;
       flex-direction: row;
-      height: 50px;
+      min-height: 50px;
       border-radius: 10px;
       margin-bottom: 20px;
+      padding: 20px 0px;
+
+      @media (max-width:768px) {
+        min-height: 60px;
+      }
+
     }
 
     .table-data{
@@ -32,10 +43,43 @@ body{
       flex: 1;
       align-items: center;
       padding-left: 20px;
+
+      .status-container{
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        .icon{
+          font-size: 30px;
+          margin-right: 10px;
+
+          &.green-icon{
+            color: green;
+          }
+
+          &.red-icon{
+            color: red;
+          }
+
+          &.blue-icon{
+            color: #0d6efd;
+          }
+
+          &.grey-icon{
+            color: #6c757d;
+          }
+        }
+      }
+
+      .icon-btn{
+        font-size: 25px;
+      }
+
     }
 
     .table-row{
       border: 1px solid lightgrey;
+      width: 100%;
 
       & > .table-data{
         font-weight: 700;
